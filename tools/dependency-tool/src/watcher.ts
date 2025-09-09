@@ -64,6 +64,18 @@ export function startDev(graph: DependencyGraph, entry: string, useAlias = false
 });
   });
   watchers.push(entryWatcher);
+
+  console.log('\n🌐 Next.js dev server started at http://localhost:3000');
+  console.log('   The page will automatically refresh when dependencies change\n');
+  // 优雅退出
+  process.on('SIGINT', () => {
+    console.log('\n🛑 Stopping dev mode...');
+    watchers.forEach((watcher: any) => watcher.close());
+    nextProcess.kill();
+    wss.close();
+    process.exit(0);
+  });
+}
 // 再监听依赖
 // for (const pkgName of dependenciesToWatch) {
 //   const pkgInfo = graph.nodes.get(pkgName)!;
@@ -81,18 +93,6 @@ export function startDev(graph: DependencyGraph, entry: string, useAlias = false
 //   watchers.push(watcher);
 // }
 
-
-  console.log('\n🌐 Next.js dev server started at http://localhost:3000');
-  console.log('   The page will automatically refresh when dependencies change\n');
-  // 优雅退出
-  process.on('SIGINT', () => {
-    console.log('\n🛑 Stopping dev mode...');
-    watchers.forEach((watcher: any) => watcher.close());
-    nextProcess.kill();
-    wss.close();
-    process.exit(0);
-  });
-}
 
 // import chokidar from 'chokidar';
 // import { DependencyGraph } from './dependency-graph';

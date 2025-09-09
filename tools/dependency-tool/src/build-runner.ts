@@ -20,7 +20,6 @@ const IGNORED_DIRS = ['node_modules', 'dist', '.git', '.next', '.nuxt', '.output
 
 export async function buildPackages(graph: DependencyGraph, target: string) {
   const affected = new Set<string>();
-  // 优化后的标记算法
   markAffectedPackages(graph, target, affected);
   
   const sortedOrder = topoSort(graph);
@@ -28,13 +27,83 @@ export async function buildPackages(graph: DependencyGraph, target: string) {
   
   console.log(`📦 Packages to build: ${Array.from(orderedAffected).join(' → ')}`);
   
-  // 并行构建
-  const buildPromises = orderedAffected.map(pkg => 
-    buildPackageWithCache(graph, pkg)
-  );
+  // 按拓扑层级分组
+  const levels = groupByTopoLevel(graph, orderedAffected);
   
-  await Promise.all(buildPromises);
+  // 按层级顺序构建，同一层级的并行
+  for (const levelPackages of levels) {
+    console.log(`🚀 Building level: ${levelPackages.join(', ')}`);
+    
+    const buildPromises = levelPackages.map(pkg => 
+      buildPackageWithCache(graph, pkg)
+    );
+    
+    await Promise.all(buildPromises);
+  }
+  
   console.log('✅ Build finished');
+}
+
+// dependency-graph.ts - 添加这个函数
+export function calculateInDegree(graph: DependencyGraph): Record<string, number> {
+  const inDegree: Record<string, number> = {};
+  
+  // 初始化所有节点的入度为0
+  for (const node of graph.nodes.keys()) {
+    inDegree[node] = 0;
+  }
+  
+  // 遍历所有边，计算入度
+  for (const [source, dependencies] of graph.edges.entries()) {
+    for (const dep of dependencies) {
+      if (graph.nodes.has(dep)) { // 只计算内部依赖
+        inDegree[dep] = (inDegree[dep] || 0) + 1;
+      }
+    }
+  }
+  
+  return inDegree;
+}
+
+// 正确的层级分组函数
+function groupByTopoLevel(graph: DependencyGraph, packages: string[]): string[][] {
+  const depthMap = new Map<string, number>();
+  const levels: string[][] = [];
+  
+  // 为每个包计算拓扑深度
+  function calculateDepth(pkg: string): number {
+    if (depthMap.has(pkg)) {
+      return depthMap.get(pkg)!;
+    }
+    
+    const dependencies = graph.edges.get(pkg) || [];
+    if (dependencies.length === 0) {
+      depthMap.set(pkg, 0);
+      return 0;
+    }
+    
+    // 深度 = 最大依赖深度 + 1
+    const maxDepDepth = Math.max(...dependencies.map(dep => 
+      packages.includes(dep) ? calculateDepth(dep) : -1
+    ));
+    
+    const depth = maxDepDepth + 1;
+    depthMap.set(pkg, depth);
+    return depth;
+  }
+  
+  // 计算每个包的深度
+  for (const pkg of packages) {
+    calculateDepth(pkg);
+  }
+  
+  // 按深度分组
+  for (const [pkg, depth] of depthMap) {
+    if (!levels[depth]) levels[depth] = [];
+    levels[depth].push(pkg);
+  }
+  
+  return levels.filter(Boolean);
 }
 
 async function buildPackageWithCache(graph: DependencyGraph, pkg: string) {
