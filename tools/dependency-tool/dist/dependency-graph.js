@@ -80,6 +80,7 @@ function topoSort(graph) {
             inDegree[dep]++;
         }
     }
+    // 获取起点初始化queue
     const queue = Object.keys(inDegree).filter((n) => inDegree[n] === 0);
     const result = [];
     while (queue.length > 0) {

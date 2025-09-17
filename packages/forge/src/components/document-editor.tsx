@@ -23,7 +23,7 @@ export default function DocumentEditor() {
             // 设置初始内容
             editorInstance.current.setContent(`
         <h1>Welcome to Forge Editor</h1>
-        <p>this asdf is a powerful document editor built with modern web technologies.</p>
+        <p>this as123 is a powerful document editor built with modern web technologies.</p>
         <ul>
           <li>Real-time editing</li>
           <li>Rich text support</li>
